@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Comprobantes Banco Unión</title>
+
+  <!-- Librería para leer QR desde una imagen -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .contenedor {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .encabezado {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-top: 6px solid #005baa;
+    }
+
+    .titulo {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #005baa;
+      text-align: center;
+    }
+
+    .subtitulo {
+      margin: 8px 0 0;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .tarjeta {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .titulo-seccion {
+      margin: 0 0 15px;
+      font-size: 18px;
+      color: #005baa;
+      font-weight: 700;
+    }
+
+    .grupo {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="url"] {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #cfd4da;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    input[readonly] {
+      background: #f1f3f5;
+      color: #333;
+      cursor: not-allowed;
+    }
+
+    .fila-url {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .fila-url input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 13px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-qr {
+      background: #005baa;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .btn-qr:hover {
+      background: #004680;
+    }
+
+    .btn-extraer {
+      width: 100%;
+      background: #198754;
+      color: white;
+      margin-top: 10px;
+    }
+
+    .btn-extraer:hover {
+      background: #146c43;
+    }
+
+    .btn-guardar {
+      width: 100%;
+      background: #dc3545;
+      color: white;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+
+    .btn-guardar:hover {
+      background: #bb2d3b;
+    }
+
+    .btn-nuevo {
+      width: 100%;
+      background: #6c757d;
+      color: white;
+      margin-top: 10px;
+    }
+
+    .btn-nuevo:hover {
+      background: #565e64;
+    }
+
+    /*
+      Input de cámara oculto visualmente.
+      El navegador del celular sigue abriendo la cámara
+      al hacer clic en el botón asociado.
+    */
+    #capturaQR {
+      display: none;
+    }
+
+    .ayuda-qr {
+      margin-top: 10px;
+      padding: 12px;
+      background: #fff3cd;
+      border: 1px solid #ffecb5;
+      border-radius: 8px;
+      color: #664d03;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .estado {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .estado.info {
+      display: block;
+      background: #cff4fc;
+      color: #055160;
+      border: 1px solid #b6effb;
+    }
+
+    .estado.exito {
+      display: block;
+      background: #d1e7dd;
+      color: #0f5132;
+      border: 1px solid #badbcc;
+    }
+
+    .estado.error {
+      display: block;
+      background: #f8d7da;
+      color: #842029;
+      border: 1px solid #f5c2c7;
+    }
+
+    .datos-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .campo-completo {
+      grid-column: 1 / -1;
+    }
+
+    .confirmacion {
+      margin-top: 18px;
+      padding: 15px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+    }
+
+    .confirmacion label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .confirmacion input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .oculto {
+      display: none !important;
+    }
+
+    .procesando {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /*
+      Modal de lectura QR
+    */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.activo {
+      display: flex;
+    }
+
+    .modal-contenido {
+      width: 100%;
+      max-width: 500px;
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .modal-titulo {
+      margin: 0 0 10px;
+      color: #005baa;
+      font-size: 20px;
+    }
+
+    .modal-texto {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    #imagenQR {
+      display: none;
+      max-width: 100%;
+      max-height: 250px;
+      margin: 10px auto;
+      border-radius: 8px;
+    }
+
+    #lectorImagenQR {
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .btn-cerrar {
+      background: #6c757d;
+      color: white;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    @media (max-width: 700px) {
+
+      .contenedor {
+        padding: 10px;
+      }
+
+      .encabezado,
+      .tarjeta {
+        padding: 15px;
+      }
+
+      .titulo {
+        font-size: 21px;
+      }
+
+      .fila-url {
+        flex-direction: column;
+      }
+
+      .fila-url button {
+        width: 100%;
+      }
+
+      .datos-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .campo-completo {
+        grid-column: auto;
+      }
+
+      button {
+        min-height: 46px;
+      }
+
+      input[type="text"],
+      input[type="url"] {
+        min-height: 46px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+  <!-- ENCABEZADO -->
+  <div class="encabezado">
+    <h1 class="titulo">Comprobantes Banco Unión</h1>
+    <p class="subtitulo">
+      Extracción y registro de comprobantes
+    </p>
+  </div>
+
+
+  <!-- URL / QR -->
+  <div class="tarjeta">
+
+    <h2 class="titulo-seccion">
+      1. Obtener comprobante
+    </h2>
+
+    <div class="grupo">
+
+      <label for="urlComprobante">
+        URL del comprobante
+      </label>
+
+      <div class="fila-url">
+
+        <input
+          type="url"
+          id="urlComprobante"
+          placeholder="Pegue aquí la URL del comprobante"
+          autocomplete="off"
+        >
+
+        <!--
+          IMPORTANTE:
+          Este botón NO utiliza getUserMedia().
+          Abre directamente la cámara del celular mediante
+          input type=file + capture=environment.
+        -->
+        <button
+          type="button"
+          class="btn-qr"
+          id="btnQR"
+          onclick="abrirCamaraQR()">
+          📷 ESCANEAR QR
+        </button>
+
+      </div>
+
+      <!-- Input real de cámara -->
+      <input
+        type="file"
+        id="capturaQR"
+        accept="image/*"
+        capture="environment"
+        onchange="procesarImagenQR(event)"
+      >
+
+      <div class="ayuda-qr">
+        <strong>📱 Para escanear:</strong><br>
+        Presione <strong>ESCANEAR QR</strong>. En el celular se abrirá
+        la cámara para tomar una fotografía del código QR del comprobante.
+        Procure que el código QR quede completo y enfocado.
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      class="btn-extraer"
+      id="btnExtraer"
+      onclick="extraerComprobante()">
+      🔎 EXTRAER COMPROBANTE
+    </button>
+
+    <div id="estadoExtraccion" class="estado"></div>
+
+  </div>
+
+
+  <!-- DATOS EXTRAÍDOS -->
+  <div
+    class="tarjeta oculto"
+    id="seccionDatos">
+
+    <h2 class="titulo-seccion">
+      2. Datos del comprobante
+    </h2>
+
+    <div class="datos-grid">
+
+      <div class="grupo">
+        <label>ID</label>
+        <input type="text" id="id" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Fecha de registro</label>
+        <input type="text" id="fechaRegistro" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Fecha del comprobante</label>
+        <input type="text" id="fechaComprobante" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Banco</label>
+        <input type="text" id="banco" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Usuario</label>
+        <input type="text" id="usuario" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Agencia</label>
+        <input type="text" id="agencia" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Transacción</label>
+        <input type="text" id="transaccion" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Monto</label>
+        <input type="text" id="monto" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Moneda</label>
+        <input type="text" id="moneda" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Estado</label>
+        <input type="text" id="estado" readonly>
+      </div>
+
+      <div class="grupo">
+        <label>Depositante</label>
+        <input type="text" id="depositante" readonly>
+      </div>
+
+      <div class="grupo campo-completo">
+        <label>Beneficiario</label>
+        <input type="text" id="beneficiario" readonly>
+      </div>
+
+      <div class="grupo campo-completo">
+        <label>URL del comprobante</label>
+        <input type="text" id="urlExtraida" readonly>
+      </div>
+
+    </div>
+
+
+    <!-- CONFIRMACIÓN -->
+    <div class="confirmacion">
+
+      <label>
+        <input
+          type="checkbox"
+          id="confirmarDatos"
+          onchange="actualizarBotonGuardar()"
+        >
+
+        <span>
+          Confirmo que he revisado los datos extraídos del comprobante
+          y que son correctos.
+        </span>
+
+      </label>
+
+    </div>
+
+
+    <!-- GUARDAR -->
+    <button
+      type="button"
+      class="btn-guardar"
+      id="btnGuardar"
+      onclick="guardarComprobante()"
+      disabled>
+      💾 GUARDAR EN GOOGLE SHEETS
+    </button>
+
+    <!-- NUEVO -->
+    <button
+      type="button"
+      class="btn-nuevo"
+      onclick="nuevoComprobante()">
+      ➕ NUEVO COMPROBANTE
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- ==========================================================
+     MODAL PARA PROCESAMIENTO DEL QR
+     ========================================================== -->
+
+<div class="modal" id="modalQR">
+
+  <div class="modal-contenido">
+
+    <h2 class="modal-titulo">
+      📷 Procesando código QR
+    </h2>
+
+    <p class="modal-texto" id="mensajeQR">
+      Analizando la imagen...
+    </p>
+
+    <img
+      id="imagenQR"
+      alt="Imagen capturada del QR"
+    >
+
+    <div id="lectorImagenQR"></div>
+
+    <button
+      type="button"
+      class="btn-cerrar"
+      onclick="cerrarModalQR()">
+      CERRAR
+    </button>
+
+  </div>
+
+</div>
+
+
+<script>
+
+  /*
+   * ============================================================
+   * VARIABLES GLOBALES
+   * ============================================================
+   */
+
+  let comprobanteActual = null;
+  let procesando = false;
+  let lectorQR = null;
+
+
+  /*
+   * ============================================================
+   * ABRIR CÁMARA
+   * ============================================================
+   *
+   * NO utiliza:
+   * navigator.mediaDevices.getUserMedia()
+   *
+   * Esto permite que el navegador del celular gestione
+   * directamente la cámara mediante el selector de archivos.
+   */
+
+  function abrirCamaraQR() {
+
+    if (procesando) {
+      return;
+    }
+
+    const input = document.getElementById('capturaQR');
+
+    if (!input) {
+      mostrarEstado(
+        'No se encontró el componente de captura de cámara.',
+        'error'
+      );
+      return;
+    }
+
+    /*
+     * Limpiamos el valor anterior.
+     *
+     * Esto es importante porque si el usuario vuelve a tomar
+     * otra fotografía, onchange debe volver a ejecutarse.
+     */
+
+    input.value = '';
+
+    /*
+     * Abrimos directamente la cámara/selector del dispositivo.
+     */
+
+    input.click();
+  }
+
+
+  /*
+   * ============================================================
+   * PROCESAR IMAGEN DEL QR
+   * ============================================================
+   */
+
+  async function procesarImagenQR(event) {
+
+    const archivo = event.target.files &&
+                    event.target.files[0];
+
+    if (!archivo) {
+      return;
+    }
+
+    mostrarModalQR(
+      'Analizando el código QR de la imagen...'
+    );
+
+    const imagen = document.getElementById('imagenQR');
+
+    try {
+
+      /*
+       * Mostramos una vista previa.
+       */
+
+      imagen.src = URL.createObjectURL(archivo);
+      imagen.style.display = 'block';
+
+
+      /*
+       * Verificamos que la librería esté disponible.
+       */
+
+      if (typeof Html5Qrcode === 'undefined') {
+
+        cerrarModalQR();
+
+        mostrarEstado(
+          'No se pudo cargar el lector QR. ' +
+          'Verifique su conexión a Internet y vuelva a intentarlo.',
+          'error'
+        );
+
+        return;
+      }
+
+
+      /*
+       * Creamos el lector.
+       */
+
+      if (!lectorQR) {
+        lectorQR = new Html5Qrcode(
+          'lectorImagenQR'
+        );
+      }
+
+
+      /*
+       * Intentamos leer el QR directamente desde la imagen.
+       */
+
+      const resultado = await lectorQR.scanFile(
+        archivo,
+        true
+      );
+
+
+      /*
+       * QR encontrado.
+       */
+
+      procesarQR(resultado);
+
+    } catch (error) {
+
+      console.error(
+        'Error leyendo QR:',
+        error
+      );
+
+      cerrarModalQR();
+
+      mostrarEstado(
+        'No se pudo leer el código QR de la fotografía. ' +
+        'Asegúrese de que el QR esté completo, enfocado y tenga buena iluminación. ' +
+        'También puede pegar manualmente la URL del comprobante.',
+        'error'
+      );
+
+    }
+
+  }
+
+
+  /*
+   * ============================================================
+   * PROCESAR TEXTO OBTENIDO DEL QR
+   * ============================================================
+   */
+
+  function procesarQR(textoQR) {
+
+    cerrarModalQR();
+
+    if (!textoQR) {
+
+      mostrarEstado(
+        'El código QR no contiene información.',
+        'error'
+      );
+
+      return;
+    }
+
+    textoQR = String(textoQR).trim();
+
+
+    /*
+     * Algunos QR pueden devolver espacios o saltos de línea.
+     */
+
+    textoQR = textoQR.replace(/\s+/g, '');
+
+
+    /*
+     * Verificamos que sea una URL.
+     */
+
+    if (
+      !/^https?:\/\//i.test(textoQR)
+    ) {
+
+      mostrarEstado(
+        'El QR fue leído, pero no contiene una URL válida. ' +
+        'Contenido detectado: ' + textoQR,
+        'error'
+      );
+
+      return;
+    }
+
+
+    /*
+     * Colocamos la URL en el campo.
+     */
+
+    document.getElementById(
+      'urlComprobante'
+    ).value = textoQR;
+
+
+    /*
+     * Confirmamos lectura.
+     */
+
+    mostrarEstado(
+      '✓ Código QR leído correctamente. ' +
+      'Extrayendo el comprobante...',
+      'exito'
+    );
+
+
+    /*
+     * EXTRAER AUTOMÁTICAMENTE
+     */
+
+    extraerComprobante();
+
+  }
+
+
+  /*
+   * ============================================================
+   * MOSTRAR MODAL
+   * ============================================================
+   */
+
+  function mostrarModalQR(mensaje) {
+
+    const modal = document.getElementById('modalQR');
+    const texto = document.getElementById('mensajeQR');
+    const imagen = document.getElementById('imagenQR');
+
+    texto.textContent = mensaje;
+
+    imagen.style.display = 'none';
+    imagen.removeAttribute('src');
+
+    modal.classList.add('activo');
+  }
+
+
+  /*
+   * ============================================================
+   * CERRAR MODAL
+   * ============================================================
+   */
+
+  function cerrarModalQR() {
+
+    const modal = document.getElementById('modalQR');
+
+    modal.classList.remove('activo');
+
+    const imagen = document.getElementById('imagenQR');
+
+    if (imagen.src) {
+
+      try {
+        URL.revokeObjectURL(imagen.src);
+      } catch (e) {
+        // No hacemos nada.
+      }
+
+      imagen.removeAttribute('src');
+    }
+  }
+
+
+  /*
+   * ============================================================
+   * EXTRAER COMPROBANTE
+   * ============================================================
+   */
+
+  function extraerComprobante() {
+
+    if (procesando) {
+      return;
+    }
+
+    const url = document
+      .getElementById('urlComprobante')
+      .value
+      .trim();
+
+
+    if (!url) {
+
+      mostrarEstado(
+        'Debe ingresar o escanear la URL del comprobante.',
+        'error'
+      );
+
+      return;
+    }
+
+
+    if (!/^https?:\/\//i.test(url)) {
+
+      mostrarEstado(
+        'La URL ingresada no es válida.',
+        'error'
+      );
+
+      return;
+    }
+
+
+    /*
+     * Validación visual básica del dominio.
+     */
+
+    try {
+
+      const urlObj = new URL(url);
+
+      const host = urlObj.hostname
+        .toLowerCase()
+        .replace(/^www\./, '');
+
+      if (
+        host !== 'bancounion.com.bo'
+      ) {
+
+        mostrarEstado(
+          'La URL no corresponde al dominio de Banco Unión.',
+          'error'
+        );
+
+        return;
+      }
+
+    } catch (e) {
+
+      mostrarEstado(
+        'La URL ingresada no es válida.',
+        'error'
+      );
+
+      return;
+    }
+
+
+    /*
+     * Bloqueamos doble clic.
+     */
+
+    procesando = true;
+
+    const botonExtraer =
+      document.getElementById('btnExtraer');
+
+    const botonQR =
+      document.getElementById('btnQR');
+
+    botonExtraer.disabled = true;
+    botonQR.disabled = true;
+
+
+    mostrarEstado(
+      'Consultando el comprobante de Banco Unión...',
+      'info'
+    );
+
+
+    /*
+     * Ocultamos datos anteriores.
+     */
+
+    document
+      .getElementById('seccionDatos')
+      .classList.add('oculto');
+
+
+    google.script.run
+
+      .withSuccessHandler(function(datos) {
+
+        procesando = false;
+
+        botonExtraer.disabled = false;
+        botonQR.disabled = false;
+
+
+        if (!datos) {
+
+          mostrarEstado(
+            'No se recibieron datos del comprobante.',
+            'error'
+          );
+
+          return;
+        }
+
+
+        /*
+         * Guardamos el objeto completo recibido del servidor.
+         */
+
+        comprobanteActual = datos;
+
+
+        /*
+         * Mostramos los datos.
+         */
+
+        mostrarDatos(datos);
+
+
+        /*
+         * Mostramos sección.
+         */
+
+        document
+          .getElementById('seccionDatos')
+          .classList.remove('oculto');
+
+
+        /*
+         * Desmarcamos confirmación.
+         */
+
+        document
+          .getElementById('confirmarDatos')
+          .checked = false;
+
+
+        actualizarBotonGuardar();
+
+
+        mostrarEstado(
+          '✓ Comprobante extraído correctamente. ' +
+          'Revise los datos antes de guardar.',
+          'exito'
+        );
+
+      })
+
+      .withFailureHandler(function(error) {
+
+        procesando = false;
+
+        botonExtraer.disabled = false;
+        botonQR.disabled = false;
+
+
+        let mensaje =
+          'Error al extraer el comprobante.';
+
+
+        if (error && error.message) {
+          mensaje += ' ' + error.message;
+        }
+
+
+        mostrarEstado(
+          mensaje,
+          'error'
+        );
+
+      })
+
+      .extraerComprobante(url);
+
+  }
+
+
+  /*
+   * ============================================================
+   * MOSTRAR DATOS
+   * ============================================================
+   */
+
+  function mostrarDatos(datos) {
+
+    asignarValor(
+      'id',
+      datos.id
+    );
+
+    asignarValor(
+      'fechaRegistro',
+      datos.fechaRegistro
+    );
+
+    asignarValor(
+      'fechaComprobante',
+      datos.fechaComprobante
+    );
+
+    asignarValor(
+      'banco',
+      datos.banco
+    );
+
+    asignarValor(
+      'usuario',
+      datos.usuario
+    );
+
+    asignarValor(
+      'agencia',
+      datos.agencia
+    );
+
+    asignarValor(
+      'transaccion',
+      datos.transaccion
+    );
+
+    asignarValor(
+      'monto',
+      datos.monto
+    );
+
+    asignarValor(
+      'moneda',
+      datos.moneda
+    );
+
+    asignarValor(
+      'estado',
+      datos.estado
+    );
+
+    asignarValor(
+      'depositante',
+      datos.depositante
+    );
+
+    asignarValor(
+      'beneficiario',
+      datos.beneficiario
+    );
+
+    asignarValor(
+      'urlExtraida',
+      datos.url
+    );
+
+  }
+
+
+  /*
+   * ============================================================
+   * ASIGNAR VALOR
+   * ============================================================
+   */
+
+  function asignarValor(id, valor) {
+
+    const elemento =
+      document.getElementById(id);
+
+    if (!elemento) {
+      return;
+    }
+
+    elemento.value =
+      valor === null ||
+      valor === undefined
+        ? ''
+        : valor;
+
+  }
+
+
+  /*
+   * ============================================================
+   * BOTÓN GUARDAR
+   * ============================================================
+   */
+
+  function actualizarBotonGuardar() {
+
+    const checkbox =
+      document.getElementById('confirmarDatos');
+
+    const boton =
+      document.getElementById('btnGuardar');
+
+
+    boton.disabled =
+      !checkbox.checked ||
+      !comprobanteActual ||
+      procesando;
+
+  }
+
+
+  /*
+   * ============================================================
+   * GUARDAR COMPROBANTE
+   * ============================================================
+   */
+
+  function guardarComprobante() {
+
+    if (procesando) {
+      return;
+    }
+
+
+    if (!comprobanteActual) {
+
+      mostrarEstado(
+        'No existe un comprobante para guardar.',
+        'error'
+      );
+
+      return;
+    }
+
+
+    const confirmado =
+      document.getElementById(
+        'confirmarDatos'
+      ).checked;
+
+
+    if (!confirmado) {
+
+      mostrarEstado(
+        'Debe confirmar que revisó los datos.',
+        'error'
+      );
+
+      return;
+    }
+
+
+    /*
+     * Doble protección contra doble clic.
+     */
+
+    procesando = true;
+
+
+    const botonGuardar =
+      document.getElementById('btnGuardar');
+
+    const botonNuevo =
+      document.querySelector('.btn-nuevo');
+
+    const botonExtraer =
+      document.getElementById('btnExtraer');
+
+    const botonQR =
+      document.getElementById('btnQR');
+
+
+    botonGuardar.disabled = true;
+
+    botonNuevo.disabled = true;
+    botonExtraer.disabled = true;
+    botonQR.disabled = true;
+
+
+    mostrarEstado(
+      'Guardando comprobante en Google Sheets...',
+      'info'
+    );
+
+
+    /*
+     * IMPORTANTE:
+     *
+     * No tomamos los valores desde los inputs.
+     *
+     * Se envía el objeto recibido directamente desde
+     * extraerComprobante().
+     *
+     * Esto evita que un usuario modifique los campos
+     * desde el navegador antes del guardado.
+     */
+
+    google.script.run
+
+      .withSuccessHandler(function(resultado) {
+
+        procesando = false;
+
+
+        botonNuevo.disabled = false;
+        botonExtraer.disabled = false;
+        botonQR.disabled = false;
+
+
+        if (
+          resultado &&
+          resultado.exito
+        ) {
+
+          mostrarEstado(
+            '✓ Comprobante guardado correctamente en Google Sheets. ' +
+            (
+              resultado.mensaje
+                ? resultado.mensaje
+                : ''
+            ),
+            'exito'
+          );
+
+
+          /*
+           * Ya fue guardado.
+           *
+           * Deshabilitamos nuevamente guardar.
+           */
+
+          botonGuardar.disabled = true;
+
+        } else {
+
+          botonGuardar.disabled = false;
+
+          mostrarEstado(
+            resultado &&
+            resultado.mensaje
+              ? resultado.mensaje
+              : 'No se pudo guardar el comprobante.',
+            'error'
+          );
+
+        }
+
+      })
+
+      .withFailureHandler(function(error) {
+
+        procesando = false;
+
+
+        botonNuevo.disabled = false;
+        botonExtraer.disabled = false;
+        botonQR.disabled = false;
+
+
+        botonGuardar.disabled = false;
+
+
+        let mensaje =
+          'Error al guardar el comprobante.';
+
+
+        if (
+          error &&
+          error.message
+        ) {
+          mensaje +=
+            ' ' + error.message;
+        }
+
+
+        mostrarEstado(
+          mensaje,
+          'error'
+        );
+
+      })
+
+      .guardarComprobante(
+        comprobanteActual
+      );
+
+  }
+
+
+  /*
+   * ============================================================
+   * NUEVO COMPROBANTE
+   * ============================================================
+   */
+
+  function nuevoComprobante() {
+
+    if (procesando) {
+      return;
+    }
+
+
+    comprobanteActual = null;
+
+
+    document
+      .getElementById('urlComprobante')
+      .value = '';
+
+
+    document
+      .getElementById('capturaQR')
+      .value = '';
+
+
+    document
+      .getElementById('confirmarDatos')
+      .checked = false;
+
+
+    const campos = [
+      'id',
+      'fechaRegistro',
+      'fechaComprobante',
+      'banco',
+      'usuario',
+      'agencia',
+      'transaccion',
+      'monto',
+      'moneda',
+      'estado',
+      'depositante',
+      'beneficiario',
+      'urlExtraida'
+    ];
+
+
+    campos.forEach(function(id) {
+
+      const campo =
+        document.getElementById(id);
+
+      if (campo) {
+        campo.value = '';
+      }
+
+    });
+
+
+    document
+      .getElementById('seccionDatos')
+      .classList.add('oculto');
+
+
+    document
+      .getElementById('estadoExtraccion')
+      .className = 'estado';
+
+
+    document
+      .getElementById('estadoExtraccion')
+      .textContent = '';
+
+
+    actualizarBotonGuardar();
+
+
+    /*
+     * Regresamos al campo URL.
+     */
+
+    document
+      .getElementById('urlComprobante')
+      .focus();
+
+  }
+
+
+  /*
+   * ============================================================
+   * MENSAJES DE ESTADO
+   * ============================================================
+   */
+
+  function mostrarEstado(
+    mensaje,
+    tipo
+  ) {
+
+    const elemento =
+      document.getElementById(
+        'estadoExtraccion'
+      );
+
+
+    elemento.textContent =
+      mensaje;
+
+
+    elemento.className =
+      'estado ' + tipo;
+
+
+    /*
+     * Hacemos scroll al mensaje en celular.
+     */
+
+    elemento.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
+
+  }
+
+
+  /*
+   * ============================================================
+   * MANEJO DE TECLA ESC
+   * ============================================================
+   */
+
+  document.addEventListener(
+    'keydown',
+    function(event) {
+
+      if (
+        event.key === 'Escape'
+      ) {
+
+        cerrarModalQR();
+
+      }
+
+    }
+  );
+
+
+</script>
+
+</body>
+</html>
