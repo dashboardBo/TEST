@@ -69,76 +69,77 @@
     <div id="map"></div>
 
     <script>
-        // --- 1. CONFIGURACIÓN DEL MAPA BASE (TEMA OSCURO SIN API KEY) ---
+        // --- 1. CONFIGURACIÓN DEL MAPA BASE (TEMA OSCURO) ---
         var map = L.map('map', { zoomControl: false }).setView([-17.783, -63.182], 9);
 
-        // Capa base oscura (Esri Dark Gray Canvas)
+        // CAPA BASE: Mapa oscuro
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
-            maxZoom: 16
+            maxZoom: 16,
+            pane: 'tilePane' // Se dibuja al fondo
+        }).addTo(map);
+
+        // NUEVA CAPA: Nombres de ciudades y pueblos (Solo texto)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 16,
+            pane: 'overlayPane' // Se dibuja por encima del mapa base
         }).addTo(map);
 
         // Añadir controles de zoom en la esquina superior izquierda
         L.control.zoom({ position: 'topleft' }).addTo(map);
 
-        // Capas
+        // Capas de datos
         var pinesLayer = L.layerGroup().addTo(map);
         var redVialLayer = L.layerGroup().addTo(map);
         
         var datosRedVial = null;
 
-        // --- 2. CARGAR LÍMITES DE SANTA CRUZ Y CREAR MÁSCARA ---
+        // --- 2. CARGAR LÍMITES Y CREAR MÁSCARA ---
         fetch('santa_cruz.geojson')
-            .then(res => {
-                if(!res.ok) throw new Error('Archivo no encontrado');
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                // A. La Máscara Oscura (Rellena todo el exterior de negro)
+                // A. Máscara Oscura (Tapa el exterior)
                 L.geoJSON(data, {
                     invert: true,
                     style: {
                         color: 'none',
                         fillColor: '#000000',
-                        fillOpacity: 0.85 // Opacidad para "apagar" el exterior
-                    }
+                        fillOpacity: 0.85 
+                    },
+                    pane: 'markerPane' // Forzamos a que esté por encima de las letras
                 }).addTo(map);
 
-                // B. El Borde de Santa Cruz (Línea cian brillante)
+                // B. Borde de Santa Cruz (Línea cian)
                 L.geoJSON(data, {
                     style: {
                         color: '#00e5ff',
                         weight: 2,
                         opacity: 0.8,
                         fillOpacity: 0
-                    }
+                    },
+                    pane: 'markerPane'
                 }).addTo(map);
             })
             .catch(err => console.warn('Aviso: No se pudo cargar santa_cruz.geojson.', err));
 
-        // --- 3. CARGAR RED VIAL ---
-        fetch('rutas_scz.geojson')
-            .then(res => {
-                if(!res.ok) throw new Error('Archivo no encontrado');
-                return res.json();
-            })
+        // --- 3. CARGAR RED VIAL (Tu nuevo archivo de Overpass) ---
+        fetch('red_vial_scz.geojson') // Asegúrate de que el nombre coincida con tu archivo
+            .then(res => res.json())
             .then(data => {
                 datosRedVial = data;
                 dibujarPines();
                 actualizarFiltroRedVial();
             })
             .catch(err => {
-                console.warn('Aviso: No se pudo cargar rutas_scz.geojson.', err);
+                console.warn('Aviso: No se pudo cargar red_vial_scz.geojson.', err);
                 dibujarPines();
             });
 
         // --- 4. DIBUJAR PINES (ESTILO ROJO) ---
-        // NOTA: Aquí puedes reemplazar estos datos con los de tu Google Sheets
         var puntosData = [
             { lat: -17.783, lng: -63.182, nombre: "Estación Central", info: "Recaudación: 25.000 Bs" },
             { lat: -17.750, lng: -63.150, nombre: "Estación Norte", info: "Recaudación: 12.500 Bs" },
-            { lat: -17.810, lng: -63.210, nombre: "Estación Sur", info: "Recaudación: 8.000 Bs" },
-            { lat: -17.700, lng: -63.250, nombre: "Estación Este", info: "Recaudación: 15.000 Bs" },
+            { lat: -17.810, lng: -63.210, nombre: "Estación Sur", info: "Recaudación: 8.000 Bs" }
             // ... Añade aquí tus 42 puntos
         ];
 
@@ -176,23 +177,23 @@
             L.geoJSON(datosRedVial, {
                 style: {
                     color: '#f39c12', 
-                    weight: 2,        
-                    opacity: 0.8
+                    weight: 3,        
+                    opacity: 0.9
                 },
                 filter: function(feature) {
                     if (feature.geometry.type === 'LineString') {
                         return feature.geometry.coordinates.some(coord => {
                             var latlng = L.latLng(coord[1], coord[0]);
-                            var cercaDePin = coordsPines.some(pin => latlng.distanceTo(pin) < 8000);
+                            var cercaDePin = coordsPines.some(pin => latlng.distanceTo(pin) < 15000); // Ampliado a 15km
                             return bounds.contains(latlng) || cercaDePin;
                         });
                     }
                     return true;
-                }
+                },
+                pane: 'markerPane'
             }).addTo(redVialLayer);
         }
 
-        // Actualizar carreteras cuando se mueve el mapa
         map.on('moveend', actualizarFiltroRedVial);
 
         // --- 6. BOTÓN DE DESCARGA ---
@@ -214,7 +215,7 @@
                 <div style="margin-bottom: 5px; font-weight: bold; color: #fff;">REFERENCIAS</div>
                 <div><i style="background: #00e5ff;"></i> Límite Santa Cruz</div>
                 <div><i style="background: #f39c12;"></i> Red vial fundamental</div>
-                <div style="margin-top: 8px; font-size: 10px; color: #666;">Datos: OpenStreetMap / ABC</div>
+                <div style="margin-top: 8px; font-size: 10px; color: #666;">Datos: OpenStreetMap / Esri</div>
             `;
             return div;
         };
