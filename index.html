@@ -2,174 +2,130 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard: Red Vial Dinámica - Santa Cruz</title>
+    <title>Dashboard: Red Vial + Máscara Santa Cruz</title>
     
-    <!-- Leaflet CSS y JS desde CDN (Gratuito) -->
+    <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Plugin Leaflet.snogylop para invertir polígonos -->
+    <script src="https://unpkg.com/leaflet.snogylop@0.4.0/src/leaflet.snogylop.js"></script>
 
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
         #map { height: 100vh; width: 100%; }
-        
-        /* Estilo para el botón de descarga */
         #download-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            padding: 10px 15px;
-            background-color: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            padding: 10px 15px; background-color: #2c3e50; color: white;
+            border: none; border-radius: 5px; cursor: pointer;
         }
-        #download-btn:hover {
-            background-color: #34495e;
-        }
-        
         .popup-content h3 { margin: 0 0 5px 0; color: #2c3e50; }
-        .popup-content p { margin: 0; font-size: 0.9em; color: #555; }
     </style>
 </head>
 <body>
 
-    <!-- Botón para descargar el HTML -->
     <button id="download-btn">📥 Descargar HTML</button>
-    
     <div id="map"></div>
 
     <script>
-        // --- 1. CONFIGURACIÓN INICIAL DEL MAPA ---
-        var map = L.map('map').setView([-17.783, -63.182], 11);
+        // --- 1. MAPA BASE ---
+        var map = L.map('map').setView([-17.783, -63.182], 9); // Zoom inicial para ver Santa Cruz
 
-        // Capa base (OpenStreetMap)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Grupos de capas para controlar los elementos
+        // Capas para organizar los elementos
         var redVialLayer = L.layerGroup().addTo(map);
         var pinesLayer = L.layerGroup().addTo(map);
+        var mascaraLayer = L.layerGroup().addTo(map); // Aquí irá la máscara
 
-        // Variable para guardar los datos GeoJSON de las rutas
         var datosRedVial = null;
+        var geojsonSantaCruz = null;
 
-        // --- 2. DATOS DE LOS 42 PINES (EJEMPLO) ---
-        // En tu dashboard real, esto podría venir de un fetch a tu API de Google Sheets
-        var puntosData = [
-            { lat: -17.783, lng: -63.182, nombre: "Punto Central", info: "Información del ping 1" },
-            { lat: -17.750, lng: -63.150, nombre: "Punto Norte", info: "Información del ping 2" },
-            { lat: -17.810, lng: -63.210, nombre: "Punto Sur", info: "Información del ping 3" },
-            // ... Añade aquí el resto de tus 42 puntos
-        ];
-
-        // --- 3. CARGAR DATOS Y EJECUTAR FILTRO ---
-        // Cargamos el archivo GeoJSON de las rutas
-        fetch('rutas_scz.geojson')
-            .then(response => {
-                if (!response.ok) throw new Error('Archivo GeoJSON no encontrado');
-                return response.json();
+        // --- 2. CARGAR EL GEOJSON DE SANTA CRUZ (MÁSCARA) ---
+        fetch('santa_cruz.geojson') // Archivo descargado del repositorio CIRCPyCS o HDX
+            .then(res => res.json())
+            .then(data => {
+                geojsonSantaCruz = data;
+                crearMascaraSantaCruz();
             })
+            .catch(err => console.warn('No se pudo cargar santa_cruz.geojson. La máscara no se mostrará.', err));
+
+        function crearMascaraSantaCruz() {
+            // Usamos Leaflet.snogylop: creamos una capa GeoJSON con la opción "invert: true"
+            // Esto cubrirá todo el mundo excepto el polígono de Santa Cruz.
+            L.geoJSON(geojsonSantaCruz, {
+                invert: true, // <-- La clave para invertir el polígono
+                style: {
+                    color: '#000',          // Color del borde (opcional)
+                    weight: 1,
+                    opacity: 0.3,
+                    fillColor: '#000',      // Color de relleno de la máscara
+                    fillOpacity: 0.6        // Ajusta la opacidad para que el fondo se vea más o menos oscuro
+                }
+            }).addTo(mascaraLayer);
+        }
+
+        // --- 3. CARGAR LA RED VIAL (igual que antes) ---
+        fetch('rutas_scz.geojson')
+            .then(res => res.json())
             .then(data => {
                 datosRedVial = data;
-                // Una vez cargados los datos, dibujamos los pines y ejecutamos el filtro inicial
-                dibujarPines();
+                dibujarPines(); // Dibujamos pines una vez cargado todo
                 actualizarFiltroRedVial();
             })
-            .catch(error => {
-                console.warn('Aviso: No se pudo cargar el GeoJSON. Se mostrará el mapa solo con los pines.', error);
-                dibujarPines(); // Al menos mostramos los pines si falla la red vial
+            .catch(err => {
+                console.warn('No se pudo cargar rutas_scz.geojson.', err);
+                dibujarPines();
             });
 
-        // --- 4. FUNCIÓN PARA DIBUJAR LOS PINES ---
+        // --- 4. PINES (ejemplo) ---
+        var puntosData = [
+            { lat: -17.783, lng: -63.182, nombre: "Punto Central", info: "Información del ping 1" },
+            { lat: -17.750, lng: -63.150, nombre: "Punto Norte", info: "Información del ping 2" }
+        ];
+
         function dibujarPines() {
-            pinesLayer.clearLayers(); // Limpiamos capa por si se recarga
-            puntosData.forEach(function(punto) {
-                var marker = L.marker([punto.lat, punto.lng]);
-                
-                var popupContent = `
-                    <div class="popup-content">
-                        <h3>${punto.nombre}</h3>
-                        <p>${punto.info}</p>
-                    </div>
-                `;
-                marker.bindPopup(popupContent);
-                pinesLayer.addLayer(marker);
+            pinesLayer.clearLayers();
+            puntosData.forEach(p => {
+                L.marker([p.lat, p.lng])
+                 .bindPopup(`<div class="popup-content"><h3>${p.nombre}</h3><p>${p.info}</p></div>`)
+                 .addTo(pinesLayer);
             });
         }
 
-        // --- 5. LÓGICA DEL FILTRO DINÁMICO ---
+        // --- 5. FILTRO DINÁMICO DE LA RED VIAL (igual que antes) ---
         function actualizarFiltroRedVial() {
-            // Si aún no tenemos los datos de las rutas, no hacemos nada
             if (!datosRedVial) return;
-
-            // 1. Obtener los límites actuales del mapa y expandirlos un poco (pad)
-            // Esto crea un "margen" para que las rutas cercanas al borde también se muestren.
-            var bounds = map.getBounds().pad(0.2); 
-            
-            // 2. Extraer las coordenadas de los pines para usarlas como referencia
+            var bounds = map.getBounds().pad(0.2);
             var coordsPines = puntosData.map(p => L.latLng(p.lat, p.lng));
 
-            // 3. Limpiar la capa anterior de la red vial
             redVialLayer.clearLayers();
-
-            // 4. Crear una nueva capa GeoJSON con una función de filtro
-            var capaFiltrada = L.geoJSON(datosRedVial, {
-                style: {
-                    color: '#e74c3c',
-                    weight: 3,
-                    opacity: 0.8
-                },
-                // --- FUNCIÓN DE FILTRO PRINCIPAL ---
+            L.geoJSON(datosRedVial, {
+                style: { color: '#e74c3c', weight: 3, opacity: 0.8 },
                 filter: function(feature) {
-                    // Obtenemos las coordenadas de la geometría de la ruta
-                    var coordsRuta = feature.geometry.coordinates;
-                    
-                    // Si la ruta es una línea (lo habitual), revisamos si algún punto de la línea
-                    // está dentro de los límites del mapa o cerca de algún pin.
                     if (feature.geometry.type === 'LineString') {
-                        return coordsRuta.some(coord => {
+                        return feature.geometry.coordinates.some(coord => {
                             var latlng = L.latLng(coord[1], coord[0]);
-                            // Condición A: La ruta está dentro de la vista actual del mapa
-                            // Condición B: La ruta pasa cerca de al menos un pin (ej. dentro de 0.05 grados)
-                            var cercaDePin = coordsPines.some(pin => latlng.distanceTo(pin) < 5000); // 5000 metros = 5km
+                            var cercaDePin = coordsPines.some(pin => latlng.distanceTo(pin) < 5000);
                             return bounds.contains(latlng) || cercaDePin;
                         });
                     }
-                    // Para otros tipos (puntos, etc.), simplemente verificamos si están en los límites
-                    return true; 
+                    return true;
                 }
             }).addTo(redVialLayer);
         }
 
-        // --- 6. EVENTO PARA ACTUALIZAR EL FILTRO AL MOVER EL MAPA ---
         map.on('moveend', actualizarFiltroRedVial);
 
-        // --- 7. FUNCIONALIDAD PARA DESCARGAR EL ARCHIVO HTML ---
+        // --- 6. BOTÓN DE DESCARGA (igual que antes) ---
         document.getElementById('download-btn').addEventListener('click', function() {
-            // Obtenemos el HTML completo de la página actual
-            var htmlContent = document.documentElement.outerHTML;
-            
-            // Creamos un Blob con el contenido HTML
-            var blob = new Blob([htmlContent], { type: 'text/html' });
-            
-            // Creamos un enlace temporal para descargar
+            var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
-            a.download = 'dashboard_red_vial.html'; // Nombre del archivo a descargar
-            
-            // Simulamos un clic para iniciar la descarga
-            document.body.appendChild(a);
+            a.download = 'dashboard_santa_cruz.html';
             a.click();
-            
-            // Limpiamos el objeto URL para liberar memoria
-            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
 
