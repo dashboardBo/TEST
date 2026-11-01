@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard: Estilo Oscuro - Santa Cruz</title>
+    <title>Dashboard: Control de Peaje - Santa Cruz</title>
     
     <!-- Leaflet CSS y JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Plugin Leaflet.snogylop para invertir el polígono -->
+    <!-- Plugin Leaflet.snogylop para invertir polígonos (máscara) -->
     <script src="https://unpkg.com/leaflet.snogylop@0.4.0/src/leaflet.snogylop.js"></script>
 
     <style>
+        /* --- ESTILOS GENERALES --- */
         body { 
             margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             background-color: #000; 
         }
         #map { height: 100vh; width: 100%; background-color: #000; }
         
-        /* Botón de descarga */
+        /* --- BOTÓN DE DESCARGA --- */
         #download-btn {
             position: absolute; top: 15px; right: 15px; z-index: 1000;
             padding: 10px 15px; background-color: #1e1e1e; color: #00e5ff;
@@ -47,16 +48,17 @@
         }
         .leaflet-bar a:hover { background-color: #333 !important; }
 
-        /* --- LEYENDA (OPCIONAL) --- */
+        /* --- LEYENDA --- */
         .info.legend {
-            background: rgba(15, 15, 15, 0.8);
+            background: rgba(15, 15, 15, 0.85);
             padding: 10px 15px;
             border-radius: 8px;
             border: 1px solid #333;
             color: #ccc;
             font-size: 12px;
-            line-height: 1.5;
+            line-height: 1.6;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            font-family: monospace;
         }
         .info.legend i { width: 18px; height: 3px; display: inline-block; margin-right: 8px; vertical-align: middle; }
     </style>
@@ -67,14 +69,13 @@
     <div id="map"></div>
 
     <script>
-        // --- 1. CONFIGURACIÓN DEL MAPA BASE (TEMA OSCURO) ---
+        // --- 1. CONFIGURACIÓN DEL MAPA BASE (TEMA OSCURO SIN API KEY) ---
         var map = L.map('map', { zoomControl: false }).setView([-17.783, -63.182], 9);
 
-        // Capa base oscura (CartoDB Dark Matter)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap',
-            subdomains: 'abcd',
-            maxZoom: 20
+        // Capa base oscura (Esri Dark Gray Canvas)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+            maxZoom: 16
         }).addTo(map);
 
         // Añadir controles de zoom en la esquina superior izquierda
@@ -88,61 +89,68 @@
 
         // --- 2. CARGAR LÍMITES DE SANTA CRUZ Y CREAR MÁSCARA ---
         fetch('santa_cruz.geojson')
-            .then(res => res.json())
+            .then(res => {
+                if(!res.ok) throw new Error('Archivo no encontrado');
+                return res.json();
+            })
             .then(data => {
                 // A. La Máscara Oscura (Rellena todo el exterior de negro)
                 L.geoJSON(data, {
-                    invert: true, // Invierte el polígono
+                    invert: true,
                     style: {
-                        color: 'none',          // Sin borde exterior
-                        fillColor: '#000000',   // Relleno negro
-                        fillOpacity: 0.85       // Opacidad para "apagar" el resto de Bolivia
+                        color: 'none',
+                        fillColor: '#000000',
+                        fillOpacity: 0.85 // Opacidad para "apagar" el exterior
                     }
                 }).addTo(map);
 
                 // B. El Borde de Santa Cruz (Línea cian brillante)
                 L.geoJSON(data, {
                     style: {
-                        color: '#00e5ff',       // Color cian
+                        color: '#00e5ff',
                         weight: 2,
                         opacity: 0.8,
-                        fillOpacity: 0        // Sin relleno para que se vea el mapa interior
+                        fillOpacity: 0
                     }
                 }).addTo(map);
             })
-            .catch(err => console.warn('No se pudo cargar santa_cruz.geojson', err));
+            .catch(err => console.warn('Aviso: No se pudo cargar santa_cruz.geojson.', err));
 
-        // --- 3. CARGAR RED VIAL (ESTILO NARANJA) ---
+        // --- 3. CARGAR RED VIAL ---
         fetch('rutas_scz.geojson')
-            .then(res => res.json())
+            .then(res => {
+                if(!res.ok) throw new Error('Archivo no encontrado');
+                return res.json();
+            })
             .then(data => {
                 datosRedVial = data;
                 dibujarPines();
                 actualizarFiltroRedVial();
             })
             .catch(err => {
-                console.warn('No se pudo cargar rutas_scz.geojson', err);
+                console.warn('Aviso: No se pudo cargar rutas_scz.geojson.', err);
                 dibujarPines();
             });
 
-        // --- 4. DIBUJAR PINES (ESTILO ROJO CIRCULAR) ---
+        // --- 4. DIBUJAR PINES (ESTILO ROJO) ---
+        // NOTA: Aquí puedes reemplazar estos datos con los de tu Google Sheets
         var puntosData = [
-            { lat: -17.783, lng: -63.182, nombre: "Estación Central", info: "Tráfico: Alto" },
-            { lat: -17.750, lng: -63.150, nombre: "Estación Norte", info: "Tráfico: Medio" },
-            { lat: -17.810, lng: -63.210, nombre: "Estación Sur", info: "Tráfico: Bajo" },
-            // ... Añade tus 42 puntos aquí
+            { lat: -17.783, lng: -63.182, nombre: "Estación Central", info: "Recaudación: 25.000 Bs" },
+            { lat: -17.750, lng: -63.150, nombre: "Estación Norte", info: "Recaudación: 12.500 Bs" },
+            { lat: -17.810, lng: -63.210, nombre: "Estación Sur", info: "Recaudación: 8.000 Bs" },
+            { lat: -17.700, lng: -63.250, nombre: "Estación Este", info: "Recaudación: 15.000 Bs" },
+            // ... Añade aquí tus 42 puntos
         ];
 
         function dibujarPines() {
             pinesLayer.clearLayers();
             puntosData.forEach(p => {
-                // Usamos circleMarker en lugar del marcador de gota por defecto
                 var marker = L.circleMarker([p.lat, p.lng], {
                     radius: 6,
-                    fillColor: "#ff2a2a", // Rojo brillante
-                    color: "#ff2a2a",     // Borde rojo
+                    fillColor: "#ff2a2a", 
+                    color: "#ff2a2a",     
                     weight: 2,
-                    opacity: 0.6,         // Borde semitransparente (efecto halo)
+                    opacity: 0.6,         
                     fillOpacity: 1
                 });
 
@@ -167,8 +175,8 @@
             
             L.geoJSON(datosRedVial, {
                 style: {
-                    color: '#f39c12', // Naranja/Dorado para las carreteras
-                    weight: 2,        // Más delgadas y elegantes
+                    color: '#f39c12', 
+                    weight: 2,        
                     opacity: 0.8
                 },
                 filter: function(feature) {
@@ -184,6 +192,7 @@
             }).addTo(redVialLayer);
         }
 
+        // Actualizar carreteras cuando se mueve el mapa
         map.on('moveend', actualizarFiltroRedVial);
 
         // --- 6. BOTÓN DE DESCARGA ---
@@ -192,12 +201,12 @@
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
-            a.download = 'dashboard_santa_cruz_dark.html';
+            a.download = 'dashboard_santa_cruz.html';
             a.click();
             URL.revokeObjectURL(url);
         });
 
-        // --- 7. AÑADIR LEYENDA EN LA ESQUINA ---
+        // --- 7. AÑADIR LEYENDA ---
         var legend = L.control({position: 'bottomleft'});
         legend.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'info legend');
@@ -205,7 +214,7 @@
                 <div style="margin-bottom: 5px; font-weight: bold; color: #fff;">REFERENCIAS</div>
                 <div><i style="background: #00e5ff;"></i> Límite Santa Cruz</div>
                 <div><i style="background: #f39c12;"></i> Red vial fundamental</div>
-                <div style="margin-top: 8px; font-size: 10px; color: #666;">Datos: OpenStreetMap</div>
+                <div style="margin-top: 8px; font-size: 10px; color: #666;">Datos: OpenStreetMap / ABC</div>
             `;
             return div;
         };
